@@ -4,9 +4,7 @@
  */
 const API = (() => {
   // URL сервера
-  const API_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:3000/api' 
-    : 'https://majestic-poker1.vercel.app/api';
+  const API_URL = 'https://majestic-poker1.vercel.app/api';
 
   // Токен пользовательской сессии (JWT)
   let sessionToken = null;
