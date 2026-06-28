@@ -3,10 +3,10 @@
  * Использует JWT токены
  */
 const API = (() => {
-  // URL сервера (измените после деплоя на Vercel)
+  // URL сервера
   const API_URL = window.location.hostname === 'localhost' 
     ? 'http://localhost:3000/api' 
-    : '/api';
+    : 'https://majestic-poker1.vercel.app/api';
 
   // Токен пользовательской сессии (JWT)
   let sessionToken = null;
