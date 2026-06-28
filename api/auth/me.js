@@ -1,5 +1,5 @@
-const connectDB = require('../lib/db');
-const { authMiddleware } = require('../lib/auth');
+const connectDB = require('../../lib/db');
+const { authMiddleware } = require('../../lib/auth');
 
 export const config = {
   api: {
