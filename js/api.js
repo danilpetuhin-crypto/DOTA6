@@ -1,55 +1,42 @@
 /**
- * API клиент для работы с Vercel сервером
- * Использует JWT токены
+ * API клиент для работы с Convex
  */
 const API = (() => {
-  // URL сервера
-  const API_URL = 'https://majestic-poker1.vercel.app/api';
-
+  // Convex URL - замените на ваш deployment URL после настройки
+  const CONVEX_URL = window.location.origin + '/api';
+  
   // Токен пользовательской сессии (JWT)
   let sessionToken = null;
+  let currentUserId = null;
 
-  // Установка токена после логина
-  function setSessionToken(token) {
+  // Установка токена и userId после логина
+  function setSessionToken(token, userId) {
     sessionToken = token;
+    currentUserId = userId;
   }
 
   // Очистка токена при выходе
   function clearSessionToken() {
     sessionToken = null;
+    currentUserId = null;
   }
 
-  // Получение токена для проверки авторизации
+  // Получение токена
   function getSessionToken() {
     return sessionToken;
   }
 
-  // Установка токена после логина
-  function setSessionToken(token) {
-    sessionToken = token;
-  }
-
-  // Очистка токена при выходе
-  function clearSessionToken() {
-    sessionToken = null;
-  }
-
-  // Получение токена для проверки авторизации
-  function getSessionToken() {
-    return sessionToken;
+  // Получение userId
+  function getCurrentUserId() {
+    return currentUserId;
   }
 
   async function request(endpoint, options = {}) {
-    const url = `${API_URL}${endpoint}`;
+    const url = `${CONVEX_URL}${endpoint}`;
     const headers = {
       'Content-Type': 'application/json',
       ...options.headers
     };
-
-    // Добавляем токен сессии если есть
-    if (sessionToken) {
-      headers['Authorization'] = `Bearer ${sessionToken}`;
-    }
 
     const response = await fetch(url, {
       ...options,
@@ -70,9 +57,6 @@ const API = (() => {
       method: 'POST',
       body: JSON.stringify({ login, password })
     });
-    if (result.token) {
-      setSessionToken(result.token);
-    }
     return result;
   }
 
@@ -81,96 +65,68 @@ const API = (() => {
       method: 'POST',
       body: JSON.stringify({ login, password })
     });
-    if (result.token) {
-      setSessionToken(result.token);
-    }
     return result;
   }
 
   async function logout() {
-    try {
-      await request('/auth/logout', { method: 'POST' });
-    } finally {
-      clearSessionToken();
-    }
+    clearSessionToken();
   }
 
   async function getCurrentUser() {
-    return request('/auth/me');
-  }
-
-  // === Пользователи ===
-  async function getUser(userId) {
-    return request(`/users/${userId}`);
-  }
-
-  async function updateUser(userId, data) {
-    return request(`/users/${userId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data)
+    if (!currentUserId) {
+      throw new Error('Пользователь не авторизован');
+    }
+    return request('/auth/me', {
+      method: 'POST',
+      body: JSON.stringify({ userId: currentUserId })
     });
   }
 
   // === Сессии ===
-  async function getSessions(userId) {
-    return request(`/sessions?userId=${userId}`);
-  }
-
-  async function createSession(userId, data) {
-    return request('/sessions', {
+  async function getSessions() {
+    if (!currentUserId) throw new Error('Требуется авторизация');
+    return request('/sessions/getByUser', {
       method: 'POST',
-      body: JSON.stringify({ userId, ...data })
+      body: JSON.stringify({ userId: currentUserId })
     });
   }
 
-  async function updateSession(sessionId, data) {
-    return request(`/sessions/${sessionId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data)
+  async function createSession(name) {
+    if (!currentUserId) throw new Error('Требуется авторизация');
+    return request('/sessions/create', {
+      method: 'POST',
+      body: JSON.stringify({ userId: currentUserId, name })
     });
   }
 
-  async function deleteSession(sessionId) {
-    return request(`/sessions/${sessionId}`, { method: 'DELETE' });
+  async function getSessionById(sessionId) {
+    return request('/sessions/getById', {
+      method: 'POST',
+      body: JSON.stringify({ sessionId })
+    });
   }
 
-  // === Анализы (история) ===
+  // === Анализы ===
   async function getAnalyses(sessionId) {
-    return request(`/analyses?sessionId=${sessionId}`);
+    return request('/analyses/getBySession', {
+      method: 'POST',
+      body: JSON.stringify({ sessionId })
+    });
   }
 
-  async function createAnalysis(sessionId, data) {
-    return request('/analyses', {
+  async function createAnalysis(data) {
+    if (!currentUserId) throw new Error('Требуется авторизация');
+    return request('/analyses/create', {
       method: 'POST',
-      body: JSON.stringify({ sessionId, ...data })
+      body: JSON.stringify({ ...data, userId: currentUserId })
     });
   }
 
   async function deleteAnalysis(analysisId) {
-    return request(`/analyses/${analysisId}`, { method: 'DELETE' });
-  }
-
-  // === Подписки ===
-  async function getSubscription(userId) {
-    return request(`/subscriptions?userId=${userId}`);
-  }
-
-  async function activateSubscription(userId, licenseKey) {
-    return request('/subscriptions/activate', {
+    return request('/analyses/delete', {
       method: 'POST',
-      body: JSON.stringify({ userId, licenseKey })
+      body: JSON.stringify({ analysisId })
     });
-  }
-
-  async function cancelSubscription(userId) {
-    return request(`/subscriptions/${userId}/cancel`, {
-      method: 'POST'
-    });
-  }
-
-  // === Статистика ===
-  async function getUserStats(userId) {
-    return request(`/stats/${userId}`);
   }
 
   return {
@@ -178,23 +134,17 @@ const API = (() => {
     setSessionToken,
     clearSessionToken,
     getSessionToken,
+    getCurrentUserId,
     register,
     login,
     logout,
     getCurrentUser,
-    getUser,
-    updateUser,
     getSessions,
     createSession,
-    updateSession,
-    deleteSession,
+    getSessionById,
     getAnalyses,
     createAnalysis,
-    deleteAnalysis,
-    getSubscription,
-    activateSubscription,
-    cancelSubscription,
-    getUserStats
+    deleteAnalysis
   };
 })();
 

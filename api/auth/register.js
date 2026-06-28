@@ -1,51 +1,71 @@
-import { User } from '../../models/User.js';
-import { generateToken } from '../../lib/auth.js';
-
+// Convex HTTP endpoint для регистрации
 export const config = {
-  api: {
-    external: true,
-  },
+  runtime: "edge",
 };
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Метод не разрешён' });
+export default async function handler(req) {
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ message: "Метод не разрешён" }), {
+      status: 405,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   try {
-    const { login, password } = req.body;
-    const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+    const { login, password } = await req.json();
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0] ||
+      req.headers.get("x-real-ip") ||
+      "unknown";
 
     if (!login || !password) {
-      return res.status(400).json({ message: 'Заполните логин и пароль' });
+      return new Response(JSON.stringify({ message: "Заполните логин и пароль" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    // Проверка: 1 IP = 1 аккаунт
-    const existingByIP = await User.findByIp(ip);
-    if (existingByIP) {
-      return res.status(403).json({ message: 'С этого устройства уже зарегистрирован аккаунт' });
+    // Convex URL из переменных окружения
+    const convexUrl = process.env.CONVEX_URL;
+
+    if (!convexUrl) {
+      return new Response(JSON.stringify({ message: "Convex не настроен" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    // Проверка: логин занят
-    const existingByLogin = await User.findByLogin(login);
-    if (existingByLogin) {
-      return res.status(400).json({ message: 'Пользователь с таким логином уже существует' });
-    }
-
-    const user = await User.create({ login, password, ip });
-    const token = generateToken(user.id);
-
-    res.status(201).json({
-      user: {
-        id: user.id,
-        login: user.login,
-        subscription: user.subscription,
-        analysesToday: user.analysesToday
+    // Вызов Convex функции регистрации
+    const response = await fetch(`${convexUrl}/auth/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-      token
+      body: JSON.stringify({ login, password, ip }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return new Response(JSON.stringify({ message: error.message || "Ошибка регистрации" }), {
+        status: response.status,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const result = await response.json();
+
+    return new Response(JSON.stringify({
+      success: true,
+      userId: result,
+    }), {
+      status: 201,
+      headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error('Ошибка регистрации:', err);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    console.error("Ошибка регистрации:", err);
+    return new Response(JSON.stringify({ message: "Ошибка сервера" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }

@@ -3,10 +3,11 @@
 
   async function checkAuth() {
     const savedToken = Storage.getSessionToken();
+    const savedUserId = Storage.getUserId();
     
     if (document.body.classList.contains('auth-page')) {
       // Если есть токен, пробуем загрузить пользователя через API
-      if (savedToken) {
+      if (savedToken && savedUserId) {
         try {
           const user = await API.getCurrentUser();
           Storage.setUser(user);
@@ -15,12 +16,13 @@
         } catch (e) {
           // Токен невалиден, очищаем
           Storage.clearSessionToken();
+          Storage.clearUserId();
         }
       }
       initAuthPage();
     } else {
       // На страницах приложения требуется авторизация
-      if (!savedToken) {
+      if (!savedToken || !savedUserId) {
         window.location.href = 'index.html';
         return;
       }
@@ -31,6 +33,7 @@
         Storage.setUser(user);
       } catch (e) {
         Storage.clearSessionToken();
+        Storage.clearUserId();
         Storage.clearUser();
         window.location.href = 'index.html';
       }
@@ -71,9 +74,10 @@
         submitBtn.textContent = 'Вход...';
         
         const result = await API.login(login, password);
-        Storage.setUser(result.user);
-        if (result.token) {
-          Storage.saveSessionToken(result.token);
+        Storage.setUser(result);
+        if (result.userId) {
+          Storage.saveSessionToken(result.userId, result.userId);
+          API.setSessionToken(result.userId, result.userId);
         }
         window.location.href = 'app.html';
       } catch (error) {
@@ -110,14 +114,15 @@
         submitBtn.textContent = 'Создание...';
         
         const result = await API.register(login, password);
-        Storage.setUser(result.user);
-        if (result.token) {
-          Storage.saveSessionToken(result.token);
+        if (result.userId) {
+          Storage.saveSessionToken(result.userId, result.userId);
+          API.setSessionToken(result.userId, result.userId);
+          Storage.setUser({ id: result.userId, login, subscription: 'free', analysesToday: 0 });
         }
         window.location.href = 'app.html';
       } catch (error) {
         // Проверка на ошибку "один IP = один аккаунт"
-        if (error.message.includes('IP')) {
+        if (error.message.includes('IP') || error.message.includes('устройства')) {
           errEl.textContent = 'С этого устройства уже зарегистрирован аккаунт';
         } else {
           errEl.textContent = error.message || 'Ошибка регистрации';

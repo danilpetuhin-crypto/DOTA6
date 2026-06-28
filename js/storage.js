@@ -1,19 +1,25 @@
 /**
  * Storage module - работа только через API
- * LocalStorage НЕ используется
+ * LocalStorage для токена сессии
  */
 const Storage = (() => {
   const TOKEN_KEY = 'mp_session_token';
+  const USER_ID_KEY = 'mp_user_id';
   
   // Кэш текущего пользователя в памяти
   let currentUserCache = null;
 
-  // === Токен сессии (только для persistence между перезагрузками) ===
-  function saveSessionToken(token) {
+  // === Токен сессии ===
+  function saveSessionToken(token, userId) {
     if (token) {
       localStorage.setItem(TOKEN_KEY, token);
     } else {
       localStorage.removeItem(TOKEN_KEY);
+    }
+    if (userId) {
+      localStorage.setItem(USER_ID_KEY, userId);
+    } else {
+      localStorage.removeItem(USER_ID_KEY);
     }
   }
 
@@ -21,8 +27,13 @@ const Storage = (() => {
     return localStorage.getItem(TOKEN_KEY);
   }
 
+  function getUserId() {
+    return localStorage.getItem(USER_ID_KEY);
+  }
+
   function clearSessionToken() {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_ID_KEY);
   }
 
   // === Работа с текущим пользователем (только кэш в памяти) ===
@@ -40,10 +51,6 @@ const Storage = (() => {
 
   function isLoggedIn() {
     return currentUserCache !== null;
-  }
-
-  function getUserId() {
-    return currentUserCache?.id;
   }
 
   function getUsername() {
@@ -88,9 +95,10 @@ const Storage = (() => {
 
   // === История (только API) ===
   async function getHistory() {
-    if (!currentUserCache) return [];
+    const userId = getUserId();
+    if (!userId) return [];
     try {
-      const sessions = await API.getSessions(currentUserCache.id);
+      const sessions = await API.getSessions();
       let allAnalyses = [];
       for (const session of sessions) {
         const analyses = await API.getAnalyses(session.id);
@@ -105,22 +113,20 @@ const Storage = (() => {
   }
 
   async function addHistory(entry) {
-    if (!currentUserCache) return null;
+    const userId = getUserId();
+    if (!userId) return null;
     try {
-      const sessions = await API.getSessions(currentUserCache.id);
+      const sessions = await API.getSessions();
       let session = sessions.find(s => s.name === 'Текущая сессия');
       
       if (!session) {
-        const result = await API.createSession(currentUserCache.id, {
-          name: 'Текущая сессия',
-          createdAt: new Date().toISOString()
-        });
+        const result = await API.createSession('Текущая сессия');
         session = result;
       }
 
-      const analysis = await API.createAnalysis(session.id, {
+      const analysis = await API.createAnalysis({
         ...entry,
-        createdAt: new Date().toISOString()
+        sessionId: session.id
       });
       return analysis;
     } catch (e) {
@@ -132,12 +138,12 @@ const Storage = (() => {
   return {
     saveSessionToken,
     getSessionToken,
+    getUserId,
     clearSessionToken,
     getUser,
     setUser,
     clearUser,
     isLoggedIn,
-    getUserId,
     getUsername,
     getUserPlan,
     isPro,

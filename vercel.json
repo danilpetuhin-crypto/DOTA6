@@ -1,20 +1,10 @@
 {
   "version": 2,
   "outputDirectory": ".",
-  "functions": {
-    "api/**/*.js": {
-      "maxDuration": 10
-    }
-  },
-  "env": {
-    "DATABASE_URL": "@DOTA6_DATABASE_URL",
-    "JWT_SECRET": "@DOTA6_JWT_SECRET"
-  },
   "routes": [
     { "src": "/css/(.*)", "dest": "/css/$1" },
     { "src": "/js/(.*)", "dest": "/js/$1" },
     { "src": "/lib/(.*)", "dest": "/lib/$1" },
-    { "src": "/api/(.*)", "dest": "/api/$1" },
     { "src": "/(.*)", "dest": "/$1" }
   ]
 }

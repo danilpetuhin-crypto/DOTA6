@@ -1,48 +1,64 @@
-import { User } from '../../models/User.js';
-import { generateToken } from '../../lib/auth.js';
-
+// Convex HTTP endpoint для логина
 export const config = {
-  api: {
-    external: true,
-  },
+  runtime: "edge",
 };
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Метод не разрешён' });
+export default async function handler(req) {
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ message: "Метод не разрешён" }), {
+      status: 405,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   try {
-    const { login, password } = req.body;
+    const { login, password } = await req.json();
 
     if (!login || !password) {
-      return res.status(400).json({ message: 'Заполните логин и пароль' });
+      return new Response(JSON.stringify({ message: "Заполните логин и пароль" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    const user = await User.findByLogin(login);
-    if (!user) {
-      return res.status(401).json({ message: 'Неверный логин или пароль' });
+    // Convex URL из переменных окружения
+    const convexUrl = process.env.CONVEX_URL;
+
+    if (!convexUrl) {
+      return new Response(JSON.stringify({ message: "Convex не настроен" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    const isMatch = await User.comparePassword(user, password);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Неверный логин или пароль' });
-    }
-
-    const token = generateToken(user.id);
-
-    res.json({
-      user: {
-        id: user.id,
-        login: user.login,
-        subscription: user.subscription,
-        analysesToday: user.analysesToday,
-        subExpires: user.subExpires
+    // Вызов Convex функции логина
+    const response = await fetch(`${convexUrl}/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-      token
+      body: JSON.stringify({ login, password }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return new Response(JSON.stringify({ message: error.message || "Ошибка входа" }), {
+        status: response.status,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const result = await response.json();
+
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error('Ошибка входа:', err);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    console.error("Ошибка входа:", err);
+    return new Response(JSON.stringify({ message: "Ошибка сервера" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }
