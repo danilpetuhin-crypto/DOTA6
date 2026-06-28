@@ -1,17 +1,10 @@
 {
   "version": 2,
   "outputDirectory": ".",
-  "installCommand": "npm install",
-  "buildCommand": "npm run build",
   "functions": {
     "api/**/*.js": {
       "maxDuration": 10
     }
-  },
-  "env": {
-    "POSTGRES_URL": "@DOTA6_POSTGRES_URL",
-    "DATABASE_URL": "@DOTA6_DATABASE_URL",
-    "PRISMA_DATABASE_URL": "@DOTA6_PRISMA_DATABASE_URL"
   },
   "routes": [
     { "src": "/css/(.*)", "dest": "/css/$1" },
