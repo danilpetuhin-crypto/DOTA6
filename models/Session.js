@@ -1,32 +1,28 @@
-const { query } = require('../lib/db');
+import { prisma } from '../lib/prisma.js';
 
-class Session {
-  static async findByUserId(userId) {
-    const result = await query('SELECT * FROM sessions WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
-    return result.rows;
+export const Session = {
+  async findByUserId(userId) {
+    return prisma.session.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
+  },
+
+  async findById(id) {
+    return prisma.session.findUnique({ where: { id } });
+  },
+
+  async findByIdAndUser(id, userId) {
+    return prisma.session.findFirst({ where: { id, userId } });
+  },
+
+  async create({ userId, name }) {
+    return prisma.session.create({
+      data: { userId, name: name || 'Текущая сессия' }
+    });
+  },
+
+  async deleteByIdAndUser(id, userId) {
+    await prisma.session.deleteMany({ where: { id, userId } });
   }
-
-  static async findById(id) {
-    const result = await query('SELECT * FROM sessions WHERE id = $1', [id]);
-    return result.rows[0] || null;
-  }
-
-  static async findByIdAndUser(id, userId) {
-    const result = await query('SELECT * FROM sessions WHERE id = $1 AND user_id = $2', [id, userId]);
-    return result.rows[0] || null;
-  }
-
-  static async create({ userId, name }) {
-    const result = await query(
-      'INSERT INTO sessions (user_id, name) VALUES ($1, $2) RETURNING *',
-      [userId, name || 'Текущая сессия']
-    );
-    return result.rows[0];
-  }
-
-  static async deleteByIdAndUser(id, userId) {
-    await query('DELETE FROM sessions WHERE id = $1 AND user_id = $2', [id, userId]);
-  }
-}
-
-module.exports = Session;
+};

@@ -1,13 +1,13 @@
-const User = require('../../models/User');
-const { authMiddleware } = require('../../lib/auth');
+import { User } from '../../models/User.js';
+import { authMiddleware } from '../../lib/auth.js';
 
-module.exports.config = {
+export const config = {
   api: {
     external: true,
   },
 };
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Метод не разрешён' });
   }

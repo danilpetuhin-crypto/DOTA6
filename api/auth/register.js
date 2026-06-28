@@ -1,13 +1,13 @@
-const User = require('../../models/User');
-const { generateToken } = require('../../lib/auth');
+import { User } from '../../models/User.js';
+import { generateToken } from '../../lib/auth.js';
 
-module.exports.config = {
+export const config = {
   api: {
     external: true,
   },
 };
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Метод не разрешён' });
   }
@@ -40,7 +40,7 @@ module.exports = async function handler(req, res) {
         id: user.id,
         login: user.login,
         subscription: user.subscription,
-        analysesToday: user.analyses_today
+        analysesToday: user.analysesToday
       },
       token
     });

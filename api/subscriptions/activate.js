@@ -1,7 +1,7 @@
-const User = require('../../models/User');
-const { authMiddleware } = require('../../lib/auth');
+import { User } from '../../models/User.js';
+import { authMiddleware } from '../../lib/auth.js';
 
-module.exports.config = {
+export const config = {
   api: {
     external: true,
   },
@@ -10,7 +10,7 @@ module.exports.config = {
 // Валидные лицензионные ключи
 const VALID_KEYS = ['EKKL-812C-2DSL-L5VN', 'GCKL-241C-2DSL-L38N'];
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Метод не разрешён' });
   }
@@ -44,7 +44,7 @@ module.exports = async function handler(req, res) {
         id: user.id,
         login: user.login,
         subscription: user.subscription,
-        subExpires: user.sub_expires
+        subExpires: user.subExpires
       }
     });
   } catch (err) {

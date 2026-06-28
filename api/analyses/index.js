@@ -1,14 +1,14 @@
-const Analysis = require('../../models/Analysis');
-const Session = require('../../models/Session');
-const { authMiddleware } = require('../../lib/auth');
+import { Analysis } from '../../models/Analysis.js';
+import { Session } from '../../models/Session.js';
+import { authMiddleware } from '../../lib/auth.js';
 
-module.exports.config = {
+export const config = {
   api: {
     external: true,
   },
 };
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   await authMiddleware(req, res, () => {});
 
   if (!req.user) {

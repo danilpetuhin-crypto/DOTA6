@@ -1,5 +1,6 @@
 # Зависимости
 node_modules/
+generated/
 
 # Переменные окружения
 .env
