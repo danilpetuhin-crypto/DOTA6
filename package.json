@@ -2,6 +2,7 @@
   "name": "majestic-poker",
   "version": "1.0.0",
   "description": "Majestic Poker - AI Analyzer",
+  "type": "module",
   "scripts": {
     "dev": "vercel dev"
   },
