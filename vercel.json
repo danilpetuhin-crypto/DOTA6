@@ -6,9 +6,6 @@
       "maxDuration": 10
     }
   },
-  "env": {
-    "DATABASE_URL": "@DOTA6_DATABASE_URL"
-  },
   "routes": [
     { "src": "/css/(.*)", "dest": "/css/$1" },
     { "src": "/js/(.*)", "dest": "/js/$1" },
