@@ -1,4 +1,3 @@
-const connectDB = require('../../lib/db');
 const Session = require('../../models/Session');
 const { authMiddleware } = require('../../lib/auth');
 
@@ -9,7 +8,6 @@ module.exports.config = {
 };
 
 module.exports = async function handler(req, res) {
-  await connectDB();
   await authMiddleware(req, res, () => {});
 
   if (!req.user) {
@@ -19,7 +17,7 @@ module.exports = async function handler(req, res) {
   const { id } = req.query;
 
   if (req.method === 'DELETE') {
-    await Session.findOneAndDelete({ _id: id, userId: req.user._id });
+    await Session.deleteByIdAndUser(id, req.user.id);
     return res.json({ message: 'Сессия удалена' });
   }
 

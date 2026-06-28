@@ -1,4 +1,3 @@
-const connectDB = require('../../lib/db');
 const User = require('../../models/User');
 const { generateToken } = require('../../lib/auth');
 
@@ -14,15 +13,13 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    await connectDB();
-
     const { login, password } = req.body;
 
     if (!login || !password) {
       return res.status(400).json({ message: 'Заполните логин и пароль' });
     }
 
-    const user = await User.findOne({ login });
+    const user = await User.findByLogin(login);
     if (!user) {
       return res.status(401).json({ message: 'Неверный логин или пароль' });
     }
@@ -32,15 +29,15 @@ module.exports = async function handler(req, res) {
       return res.status(401).json({ message: 'Неверный логин или пароль' });
     }
 
-    const token = generateToken(user._id);
+    const token = generateToken(user.id);
 
     res.json({
       user: {
-        id: user._id,
+        id: user.id,
         login: user.login,
         subscription: user.subscription,
-        analysesToday: user.analysesToday,
-        subExpires: user.subExpires
+        analysesToday: user.analyses_today,
+        subExpires: user.sub_expires
       },
       token
     });

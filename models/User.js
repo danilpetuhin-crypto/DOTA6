@@ -1,38 +1,53 @@
-const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { query } = require('../lib/db');
 
-const userSchema = new mongoose.Schema({
-  login: { 
-    type: String, 
-    required: true, 
-    unique: true, 
-    minlength: 3, 
-    maxlength: 20 
-  },
-  password: { type: String, required: true },
-  subscription: { 
-    type: String, 
-    enum: ['free', 'pro'], 
-    default: 'free' 
-  },
-  subExpires: { type: Date, default: null },
-  licenseKey: { type: String, default: null },
-  analysesToday: { type: Number, default: 0 },
-  lastAnalysisDate: { type: Date, default: null },
-  ip: { type: String, required: true },
-  createdAt: { type: Date, default: Date.now }
-});
+class User {
+  static async findByLogin(login) {
+    const result = await query('SELECT * FROM users WHERE login = $1', [login]);
+    return result.rows[0] || null;
+  }
 
-// Хэширование пароля перед сохранением
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 10);
-  next();
-});
+  static async findByIp(ip) {
+    const result = await query('SELECT * FROM users WHERE ip = $1', [ip]);
+    return result.rows[0] || null;
+  }
 
-// Метод проверки пароля
-userSchema.methods.comparePassword = async function(candidate) {
-  return await bcrypt.compare(candidate, this.password);
-};
+  static async findById(id) {
+    const result = await query('SELECT * FROM users WHERE id = $1', [id]);
+    return result.rows[0] || null;
+  }
 
-module.exports = mongoose.models.User || mongoose.model('User', userSchema);
+  static async create({ login, password, ip }) {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const result = await query(
+      `INSERT INTO users (login, password, ip, subscription, analysesToday) 
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [login, hashedPassword, ip, 'free', 0]
+    );
+    return result.rows[0];
+  }
+
+  static async updateSubscription(userId, subscription, subExpires, licenseKey) {
+    const result = await query(
+      `UPDATE users SET subscription = $1, sub_expires = $2, license_key = $3 
+       WHERE id = $4 RETURNING *`,
+      [subscription, subExpires, licenseKey, userId]
+    );
+    return result.rows[0];
+  }
+
+  static async cancelSubscription(userId) {
+    const result = await query(
+      `UPDATE users SET subscription = 'free', sub_expires = NULL, license_key = NULL 
+       WHERE id = $1 RETURNING *`,
+      [userId]
+    );
+    return result.rows[0];
+  }
+
+  async comparePassword(password) {
+    return bcrypt.compare(password, this.password);
+  }
+}
+
+module.exports = User;

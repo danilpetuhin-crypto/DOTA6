@@ -1,4 +1,3 @@
-const connectDB = require('../../lib/db');
 const Analysis = require('../../models/Analysis');
 const { authMiddleware } = require('../../lib/auth');
 
@@ -9,7 +8,6 @@ module.exports.config = {
 };
 
 module.exports = async function handler(req, res) {
-  await connectDB();
   await authMiddleware(req, res, () => {});
 
   if (!req.user) {
@@ -19,7 +17,7 @@ module.exports = async function handler(req, res) {
   const { id } = req.query;
 
   if (req.method === 'DELETE') {
-    await Analysis.findByIdAndDelete(id);
+    await Analysis.deleteById(id);
     return res.json({ message: 'Анализ удалён' });
   }
 

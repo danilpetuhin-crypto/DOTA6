@@ -1,4 +1,3 @@
-const connectDB = require('../../lib/db');
 const User = require('../../models/User');
 const { authMiddleware } = require('../../lib/auth');
 
@@ -13,7 +12,6 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ message: 'Метод не разрешён' });
   }
 
-  await connectDB();
   await authMiddleware(req, res, () => {});
 
   if (!req.user) {
@@ -23,15 +21,11 @@ module.exports = async function handler(req, res) {
   try {
     const { userId } = req.params;
 
-    if (req.user._id.toString() !== userId) {
+    if (req.user.id !== userId) {
       return res.status(403).json({ message: 'Доступ запрещён' });
     }
 
-    await User.findByIdAndUpdate(req.user._id, {
-      subscription: 'free',
-      subExpires: null,
-      licenseKey: null
-    });
+    await User.cancelSubscription(req.user.id);
 
     res.json({ message: 'Подписка отменена' });
   } catch (err) {

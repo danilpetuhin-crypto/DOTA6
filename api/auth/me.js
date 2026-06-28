@@ -1,4 +1,3 @@
-const connectDB = require('../../lib/db');
 const { authMiddleware } = require('../../lib/auth');
 
 module.exports.config = {
@@ -13,7 +12,6 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    await connectDB();
     await authMiddleware(req, res, () => {});
 
     if (!req.user) {
@@ -21,11 +19,11 @@ module.exports = async function handler(req, res) {
     }
 
     res.json({
-      id: req.user._id,
+      id: req.user.id,
       login: req.user.login,
       subscription: req.user.subscription,
-      analysesToday: req.user.analysesToday,
-      subExpires: req.user.subExpires
+      analysesToday: req.user.analyses_today,
+      subExpires: req.user.sub_expires
     });
   } catch (err) {
     console.error('Ошибка получения пользователя:', err);

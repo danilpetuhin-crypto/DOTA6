@@ -1,4 +1,3 @@
-const connectDB = require('../../lib/db');
 const User = require('../../models/User');
 const { authMiddleware } = require('../../lib/auth');
 
@@ -16,7 +15,6 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ message: 'Метод не разрешён' });
   }
 
-  await connectDB();
   await authMiddleware(req, res, () => {});
 
   if (!req.user) {
@@ -36,21 +34,17 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ message: 'Неверный ключ активации' });
     }
 
-    const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 дней
+    const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    await User.findByIdAndUpdate(req.user._id, {
-      subscription: 'pro',
-      subExpires: expires,
-      licenseKey: normalizedKey
-    });
+    const user = await User.updateSubscription(req.user.id, 'pro', expires, normalizedKey);
 
     res.json({
       message: 'Pro активирован',
       user: {
-        id: req.user._id,
-        login: req.user.login,
-        subscription: 'pro',
-        subExpires: expires
+        id: user.id,
+        login: user.login,
+        subscription: user.subscription,
+        subExpires: user.sub_expires
       }
     });
   } catch (err) {

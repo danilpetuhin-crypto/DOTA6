@@ -1,4 +1,3 @@
-const connectDB = require('../../lib/db');
 const Session = require('../../models/Session');
 const { authMiddleware } = require('../../lib/auth');
 
@@ -9,7 +8,6 @@ module.exports.config = {
 };
 
 module.exports = async function handler(req, res) {
-  await connectDB();
   await authMiddleware(req, res, () => {});
 
   if (!req.user) {
@@ -17,20 +15,13 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === 'GET') {
-    // Получить все сессии пользователя
-    const sessions = await Session.find({ userId: req.user._id }).sort({ createdAt: -1 });
+    const sessions = await Session.findByUserId(req.user.id);
     return res.json(sessions);
   }
 
   if (req.method === 'POST') {
-    // Создать сессию
-    const { name, createdAt } = req.body;
-    const session = new Session({
-      userId: req.user._id,
-      name: name || 'Текущая сессия',
-      createdAt: createdAt || new Date()
-    });
-    await session.save();
+    const { name } = req.body;
+    const session = await Session.create({ userId: req.user.id, name });
     return res.status(201).json(session);
   }
 
