@@ -1,0 +1,16 @@
+{
+  "name": "majestic-poker",
+  "version": "1.0.0",
+  "description": "Majestic Poker - AI Analyzer",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.0.0"
+  },
+  "devDependencies": {
+    "vercel": "^32.4.1"
+  }
+}

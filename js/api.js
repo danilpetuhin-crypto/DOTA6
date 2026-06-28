@@ -1,12 +1,30 @@
 /**
- * API клиент для работы с сервером
- * Использует сессионные токены (yusr_xxx)
+ * API клиент для работы с Vercel сервером
+ * Использует JWT токены
  */
 const API = (() => {
-  const API_URL = 'https://majestic-helper.yhub.net/api';
+  // URL сервера (измените после деплоя на Vercel)
+  const API_URL = window.location.hostname === 'localhost' 
+    ? 'http://localhost:3000/api' 
+    : '/api';
 
-  // Токен пользовательской сессии (yusr_xxx)
+  // Токен пользовательской сессии (JWT)
   let sessionToken = null;
+
+  // Установка токена после логина
+  function setSessionToken(token) {
+    sessionToken = token;
+  }
+
+  // Очистка токена при выходе
+  function clearSessionToken() {
+    sessionToken = null;
+  }
+
+  // Получение токена для проверки авторизации
+  function getSessionToken() {
+    return sessionToken;
+  }
 
   // Установка токена после логина
   function setSessionToken(token) {
