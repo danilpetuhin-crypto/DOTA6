@@ -1,15 +1,14 @@
 (function () {
-  // Проверяем авторизацию
-  if (!Storage.isLoggedIn()) {
-    window.location.href = 'index.html';
-    return;
-  }
+  const session = Storage.getSession();
+  if (!session) return;
+
+  const username = session.username;
+  const isPro = () => Storage.isPro(username);
 
   let board = [null, null, null, null, null];
   let hole = [null, null];
   let activeSlot = { type: 'board', index: 0 };
   let outcome = 'win';
-  let currentSessionId = null;
 
   const els = {
     boardSlots: document.getElementById('board-slots'),
@@ -39,8 +38,7 @@
 
   init();
 
-  async function init() {
-    await loadSession();
+  function init() {
     renderUserInfo();
     buildDeckGrid();
     renderAllSlots();
@@ -48,39 +46,19 @@
     updateProLock();
   }
 
-  async function loadSession() {
-    try {
-      const userId = Storage.getUserId();
-      const sessions = await API.getSessions(userId);
-      let session = sessions.find(s => s.name === 'Текущая сессия');
-      
-      if (!session) {
-        session = await API.createSession(userId, {
-          name: 'Текущая сессия',
-          createdAt: new Date().toISOString()
-        });
-      }
-      currentSessionId = session.id;
-    } catch (e) {
-      console.error('Ошибка загрузки сессии:', e);
-    }
-  }
-
   function renderUserInfo() {
-    const user = Storage.getUser();
-    if (!user) return;
-
-    els.userName.textContent = user.login || user.username;
-    els.userAvatar.textContent = (user.login || user.username || '?')[0].toUpperCase();
-    const pro = Storage.isPro();
+    els.userName.textContent = username;
+    els.userAvatar.textContent = username[0].toUpperCase();
+    const pro = isPro();
     els.userLicense.textContent = pro ? 'Pro Лицензия' : 'Free';
     els.userLicense.className = 'user-license' + (pro ? '' : ' free');
     updateAnalysesLeft();
 
-    document.getElementById('settings-username').textContent = user.login || user.username;
+    document.getElementById('settings-username').textContent = username;
     document.getElementById('settings-plan').textContent = pro ? 'Pro' : 'Free';
     updateSettingsAnalyses();
 
+    const user = Storage.getUser(username);
     const subBtn = document.getElementById('subscribe-btn');
     const cancelBtn = document.getElementById('cancel-sub-btn');
     const subExpires = document.getElementById('sub-expires');
@@ -98,22 +76,24 @@
   }
 
   function updateAnalysesLeft() {
-    if (Storage.isPro()) {
+    if (isPro()) {
       els.analysesLeft.textContent = 'Pro — безлимит';
     } else {
-      const left = Storage.getAnalysesLeft();
+      const left = Storage.getAnalysesLeft(username);
       els.analysesLeft.textContent = `Осталось анализов: ${left}/5`;
     }
   }
 
   function updateSettingsAnalyses() {
-    const count = Storage.getAnalysesToday();
+    const user = Storage.getUser(username);
+    const today = new Date().toDateString();
+    const count = user.lastAnalysisDate === today ? (user.analysesToday || 0) : 0;
     document.getElementById('settings-analyses').textContent =
-      Storage.isPro() ? 'Безлимит' : `${count} / 5`;
+      isPro() ? 'Безлимит' : `${count} / 5`;
   }
 
   function updateProLock() {
-    els.oppPanel.classList.toggle('locked', !Storage.isPro());
+    els.oppPanel.classList.toggle('locked', !isPro());
   }
 
   function buildDeckGrid() {
@@ -239,12 +219,8 @@
     els.resetBtn.addEventListener('click', resetAll);
     els.analyzeBtn.addEventListener('click', runAnalysis);
     document.getElementById('new-session-btn').addEventListener('click', resetAll);
-    document.getElementById('logout-btn').addEventListener('click', async () => {
-      try {
-        await API.logout();
-      } catch (e) {}
-      Storage.clearSessionToken();
-      Storage.clearUser();
+    document.getElementById('logout-btn').addEventListener('click', () => {
+      Storage.clearSession();
       window.location.href = 'index.html';
     });
 
@@ -253,36 +229,28 @@
       document.getElementById('key-error').textContent = '';
       openModal('sub-modal');
     });
-    document.getElementById('confirm-sub-btn').addEventListener('click', async () => {
+    document.getElementById('confirm-sub-btn').addEventListener('click', () => {
       const keyInput = document.getElementById('license-key');
       const keyError = document.getElementById('key-error');
-      
-      try {
-        const result = await API.activateSubscription(Storage.getUserId(), keyInput.value);
-        Storage.setUser(result.user);
-        keyError.textContent = '';
-        closeModal('sub-modal');
-        renderUserInfo();
-        updateProLock();
-      } catch (error) {
-        keyError.textContent = error.message || 'Ошибка активации';
+      const result = Storage.activateProWithKey(username, keyInput.value);
+
+      if (!result.ok) {
+        keyError.textContent = result.error;
+        return;
       }
+
+      keyError.textContent = '';
+      closeModal('sub-modal');
+      renderUserInfo();
+      updateProLock();
     });
     document.getElementById('license-key').addEventListener('keydown', e => {
       if (e.key === 'Enter') document.getElementById('confirm-sub-btn').click();
     });
-    document.getElementById('cancel-sub-btn').addEventListener('click', async () => {
-      try {
-        await API.cancelSubscription(Storage.getUserId());
-        const user = Storage.getUser();
-        user.subscription = 'free';
-        user.subExpires = null;
-        Storage.setUser(user);
-        renderUserInfo();
-        updateProLock();
-      } catch (error) {
-        console.error('Ошибка отмены подписки:', error);
-      }
+    document.getElementById('cancel-sub-btn').addEventListener('click', () => {
+      Storage.cancelPro(username);
+      renderUserInfo();
+      updateProLock();
     });
     document.getElementById('limit-upgrade-btn').addEventListener('click', () => {
       closeModal('limit-modal');
@@ -325,29 +293,29 @@
     renderAllSlots();
   }
 
-  async function runAnalysis() {
+  function runAnalysis() {
     const h = hole.filter(Boolean);
     if (h.length < 2) {
       els.adviceText.textContent = 'Сначала выберите две карманные карты!';
       return;
     }
 
-    if (!Storage.canAnalyze()) {
+    if (!Storage.canAnalyze(username)) {
       openModal('limit-modal');
       return;
     }
 
-    Storage.incrementAnalysesToday();
+    Storage.incrementAnalysis(username);
     updateAnalysesLeft();
     updateSettingsAnalyses();
 
     const b = board.filter(Boolean);
     const allCards = [...h, ...b];
     const hand = allCards.length >= 5 ? PokerEngine.bestHand(allCards) : null;
-    const sims = Storage.isPro() ? 3000 : 1500;
+    const sims = isPro() ? 3000 : 1500;
     const { equity } = PokerEngine.calculateEquity(h, b, 1, sims);
     const pot = parseInt(els.potAmount.value) || 0;
-    const advice = PokerEngine.generateAdvice(h, b, equity, hand, pot, Storage.isPro());
+    const advice = PokerEngine.generateAdvice(h, b, equity, hand, pot, isPro());
 
     els.equityValue.textContent = equity + '%';
     const offset = 327 - (327 * equity / 100);
@@ -370,7 +338,7 @@
       els.adviceAction.style.display = 'none';
     }
 
-    if (Storage.isPro()) {
+    if (isPro()) {
       const opp = PokerEngine.estimateOpponentRange(equity, b, hand);
       els.oppEquityBar.style.width = equity + '%';
       els.oppEquityVal.textContent = equity + '%';
@@ -379,49 +347,38 @@
       ).join('');
     }
 
-    // Сохраняем в историю через API
-    await Storage.addHistory({
-      hole: h,
-      board: b,
-      equity,
-      combo: hand ? PokerEngine.HAND_NAMES[hand.type] : 'Префлоп',
+    Storage.addHistory(username, {
+      date: new Date().toISOString(),
+      hole: h, board: b,
+      equity, combo: hand ? PokerEngine.HAND_NAMES[hand.type] : 'Префлоп',
       action: advice.action || '—',
       actionClass: advice.actionClass || '',
-      pot,
-      outcome,
-      createdAt: new Date().toISOString()
+      pot, outcome
     });
   }
 
-  async function renderHistory() {
-    els.historyList.innerHTML = '<p class="empty-state">Загрузка истории...</p>';
-    
-    try {
-      const history = await Storage.getHistory();
-      if (!history.length) {
-        els.historyList.innerHTML = '<p class="empty-state">История пуста. Проведите первый анализ!</p>';
-        return;
-      }
-
-      els.historyList.innerHTML = history.map(item => {
-        const date = new Date(item.createdAt).toLocaleString('ru-RU');
-        const cards = [...(item.hole || []), ...(item.board || [])].map(c => {
-          const d = PokerEngine.cardDisplay(c);
-          return d.rank + d.suit;
-        }).join(' ');
-        return `<div class="history-item">
-          <div class="history-item-left">
-            <div class="history-item-combo">${item.combo}</div>
-            <div class="history-item-meta">${date} · ${cards} · $${item.pot || 0}</div>
-          </div>
-          <div class="history-item-equity">${item.equity}%</div>
-          <span class="history-item-action ${item.actionClass}">${item.action}</span>
-        </div>`;
-      }).join('');
-    } catch (e) {
-      els.historyList.innerHTML = '<p class="empty-state">Ошибка загрузки истории</p>';
-      console.error('Ошибка истории:', e);
+  function renderHistory() {
+    const history = Storage.getHistory(username);
+    if (!history.length) {
+      els.historyList.innerHTML = '<p class="empty-state">История пуста. Проведите первый анализ!</p>';
+      return;
     }
+
+    els.historyList.innerHTML = history.map(item => {
+      const date = new Date(item.date).toLocaleString('ru-RU');
+      const cards = [...(item.hole || []), ...(item.board || [])].map(c => {
+        const d = PokerEngine.cardDisplay(c);
+        return d.rank + d.suit;
+      }).join(' ');
+      return `<div class="history-item">
+        <div class="history-item-left">
+          <div class="history-item-combo">${item.combo}</div>
+          <div class="history-item-meta">${date} · ${cards} · $${item.pot || 0}</div>
+        </div>
+        <div class="history-item-equity">${item.equity}%</div>
+        <span class="history-item-action ${item.actionClass}">${item.action}</span>
+      </div>`;
+    }).join('');
   }
 
   function openModal(id) {

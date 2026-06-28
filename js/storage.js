@@ -1,158 +1,190 @@
-/**
- * Storage module - работа только через API
- * LocalStorage для токена сессии
- */
-const Storage = (() => {
-  const TOKEN_KEY = 'mp_session_token';
-  const USER_ID_KEY = 'mp_user_id';
-  
-  // Кэш текущего пользователя в памяти
-  let currentUserCache = null;
+const Storage = {
+  USERS_KEY: 'majestic_poker_users',
+  SESSION_KEY: 'majestic_poker_session',
+  KEYS_KEY: 'majestic_poker_keys',
 
-  // === Токен сессии ===
-  function saveSessionToken(token, userId) {
-    if (token) {
-      localStorage.setItem(TOKEN_KEY, token);
-    } else {
-      localStorage.removeItem(TOKEN_KEY);
-    }
-    if (userId) {
-      localStorage.setItem(USER_ID_KEY, userId);
-    } else {
-      localStorage.removeItem(USER_ID_KEY);
-    }
-  }
+  VALID_KEYS: [
+    'EKKL-812C-2DSL-L5VN',
+    'GCKL-241C-2DSL-L38N'
+  ],
 
-  function getSessionToken() {
-    return localStorage.getItem(TOKEN_KEY);
-  }
-
-  function getUserId() {
-    return localStorage.getItem(USER_ID_KEY);
-  }
-
-  function clearSessionToken() {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_ID_KEY);
-  }
-
-  // === Работа с текущим пользователем (только кэш в памяти) ===
-  function getUser() {
-    return currentUserCache;
-  }
-
-  function setUser(user) {
-    currentUserCache = user;
-  }
-
-  function clearUser() {
-    currentUserCache = null;
-  }
-
-  function isLoggedIn() {
-    return currentUserCache !== null;
-  }
-
-  function getUsername() {
-    return currentUserCache?.login || currentUserCache?.username;
-  }
-
-  function getUserPlan() {
-    return currentUserCache?.subscription || 'free';
-  }
-
-  function isPro() {
-    return currentUserCache?.subscription === 'pro';
-  }
-
-  function getAnalysesToday() {
-    return currentUserCache?.analysesToday || 0;
-  }
-
-  function setAnalysesToday(count) {
-    if (currentUserCache) {
-      currentUserCache.analysesToday = count;
-    }
-  }
-
-  function incrementAnalysesToday() {
-    if (currentUserCache) {
-      currentUserCache.analysesToday = (currentUserCache.analysesToday || 0) + 1;
-    }
-  }
-
-  function canAnalyze() {
-    if (!currentUserCache) return false;
-    if (currentUserCache.subscription === 'pro') return true;
-    return (currentUserCache.analysesToday || 0) < 5;
-  }
-
-  function getAnalysesLeft() {
-    if (!currentUserCache) return 0;
-    if (currentUserCache.subscription === 'pro') return Infinity;
-    return Math.max(0, 5 - (currentUserCache.analysesToday || 0));
-  }
-
-  // === История (только API) ===
-  async function getHistory() {
-    const userId = getUserId();
-    if (!userId) return [];
+  getUsers() {
     try {
-      const sessions = await API.getSessions();
-      let allAnalyses = [];
-      for (const session of sessions) {
-        const analyses = await API.getAnalyses(session.id);
-        allAnalyses = allAnalyses.concat(analyses.map(a => ({ ...a, sessionName: session.name })));
-      }
-      allAnalyses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      return allAnalyses;
-    } catch (e) {
-      console.error('Ошибка загрузки истории:', e);
-      return [];
+      return JSON.parse(localStorage.getItem(this.USERS_KEY)) || {};
+    } catch {
+      return {};
     }
-  }
+  },
 
-  async function addHistory(entry) {
-    const userId = getUserId();
-    if (!userId) return null;
+  saveUsers(users) {
+    localStorage.setItem(this.USERS_KEY, JSON.stringify(users));
+  },
+
+  getSession() {
     try {
-      const sessions = await API.getSessions();
-      let session = sessions.find(s => s.name === 'Текущая сессия');
-      
-      if (!session) {
-        const result = await API.createSession('Текущая сессия');
-        session = result;
-      }
-
-      const analysis = await API.createAnalysis({
-        ...entry,
-        sessionId: session.id
-      });
-      return analysis;
-    } catch (e) {
-      console.error('Ошибка добавления в историю:', e);
+      return JSON.parse(localStorage.getItem(this.SESSION_KEY));
+    } catch {
       return null;
     }
-  }
+  },
 
-  return {
-    saveSessionToken,
-    getSessionToken,
-    getUserId,
-    clearSessionToken,
-    getUser,
-    setUser,
-    clearUser,
-    isLoggedIn,
-    getUsername,
-    getUserPlan,
-    isPro,
-    getAnalysesToday,
-    setAnalysesToday,
-    incrementAnalysesToday,
-    canAnalyze,
-    getAnalysesLeft,
-    getHistory,
-    addHistory
-  };
-})();
+  setSession(username) {
+    localStorage.setItem(this.SESSION_KEY, JSON.stringify({ username }));
+  },
+
+  clearSession() {
+    localStorage.removeItem(this.SESSION_KEY);
+  },
+
+  getUser(username) {
+    return this.getUsers()[username] || null;
+  },
+
+  createUser(username, password) {
+    const users = this.getUsers();
+    if (users[username]) return { ok: false, error: 'Пользователь уже существует' };
+
+    users[username] = {
+      password: this._hash(password),
+      plan: 'free',
+      subExpires: null,
+      analysesToday: 0,
+      lastAnalysisDate: null,
+      history: [],
+      createdAt: Date.now()
+    };
+    this.saveUsers(users);
+    return { ok: true };
+  },
+
+  updateUser(username, data) {
+    const users = this.getUsers();
+    if (!users[username]) return false;
+    Object.assign(users[username], data);
+    this.saveUsers(users);
+    return true;
+  },
+
+  _hash(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) {
+      h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+    }
+    return h.toString(36);
+  },
+
+  verifyPassword(username, password) {
+    const user = this.getUser(username);
+    if (!user) return false;
+    return user.password === this._hash(password);
+  },
+
+  isPro(username) {
+    const user = this.getUser(username);
+    if (!user) return false;
+    if (user.plan !== 'pro') return false;
+    if (user.subExpires && Date.now() > user.subExpires) {
+      this.updateUser(username, { plan: 'free', subExpires: null });
+      return false;
+    }
+    return true;
+  },
+
+  normalizeKey(key) {
+    return (key || '').trim().toUpperCase();
+  },
+
+  getUsedKeys() {
+    try {
+      return JSON.parse(localStorage.getItem(this.KEYS_KEY)) || {};
+    } catch {
+      return {};
+    }
+  },
+
+  saveUsedKeys(keys) {
+    localStorage.setItem(this.KEYS_KEY, JSON.stringify(keys));
+  },
+
+  activateProWithKey(username, rawKey) {
+    const key = this.normalizeKey(rawKey);
+
+    if (!key) {
+      return { ok: false, error: 'Введите ключ активации' };
+    }
+
+    if (!this.VALID_KEYS.includes(key)) {
+      return { ok: false, error: 'Неверный ключ активации' };
+    }
+
+    const usedKeys = this.getUsedKeys();
+    const usedBy = usedKeys[key];
+
+    if (usedBy && usedBy !== username) {
+      return { ok: false, error: 'Этот ключ уже активирован другим пользователем' };
+    }
+
+    if (usedBy === username && this.isPro(username)) {
+      return { ok: false, error: 'Pro уже активирован на вашем аккаунте' };
+    }
+
+    const expires = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    usedKeys[key] = username;
+    this.saveUsedKeys(usedKeys);
+    this.updateUser(username, { plan: 'pro', subExpires: expires, licenseKey: key });
+
+    return { ok: true, expires, key };
+  },
+
+  cancelPro(username) {
+    this.updateUser(username, { plan: 'free', subExpires: null });
+  },
+
+  canAnalyze(username) {
+    const user = this.getUser(username);
+    if (!user) return false;
+    if (this.isPro(username)) return true;
+
+    const today = new Date().toDateString();
+    if (user.lastAnalysisDate !== today) {
+      this.updateUser(username, { analysesToday: 0, lastAnalysisDate: today });
+      return true;
+    }
+    return user.analysesToday < 5;
+  },
+
+  incrementAnalysis(username) {
+    const user = this.getUser(username);
+    if (!user) return;
+    const today = new Date().toDateString();
+    let count = user.analysesToday || 0;
+    if (user.lastAnalysisDate !== today) count = 0;
+    this.updateUser(username, {
+      analysesToday: count + 1,
+      lastAnalysisDate: today
+    });
+  },
+
+  addHistory(username, entry) {
+    const user = this.getUser(username);
+    if (!user) return;
+    const history = user.history || [];
+    history.unshift({ ...entry, id: Date.now() });
+    const limit = this.isPro(username) ? 100 : 10;
+    this.updateUser(username, { history: history.slice(0, limit) });
+  },
+
+  getHistory(username) {
+    const user = this.getUser(username);
+    return user ? (user.history || []) : [];
+  },
+
+  getAnalysesLeft(username) {
+    if (this.isPro(username)) return Infinity;
+    const user = this.getUser(username);
+    if (!user) return 0;
+    const today = new Date().toDateString();
+    if (user.lastAnalysisDate !== today) return 5;
+    return Math.max(0, 5 - (user.analysesToday || 0));
+  }
+};
