@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Majestic Poker — AI Анализатор</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="logo">
+          <div class="logo-icon">♠</div>
+          <span class="logo-text">Majestic Poker</span>
+          <span class="beta-badge">BETA</span>
+        </div>
+        <nav class="sidebar-nav">
+          <a href="#" class="nav-item active" data-page="analyzer">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Анализатор
+          </a>
+          <a href="#" class="nav-item" data-page="history">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            История
+          </a>
+          <a href="#" class="nav-item" data-page="settings">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Настройки
+          </a>
+        </nav>
+      </div>
+      <div class="sidebar-bottom">
+        <button class="btn btn-primary btn-full" id="new-session-btn">+ Новая сессия</button>
+        <div class="user-card">
+          <div class="user-avatar" id="user-avatar">A</div>
+          <div class="user-info">
+            <div class="user-name" id="user-name">—</div>
+            <div class="user-license" id="user-license">Free</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main-content">
+      <header class="top-bar">
+        <h2 id="page-title">AI Анализатор</h2>
+        <div class="top-bar-actions">
+          <span class="analyses-left" id="analyses-left"></span>
+          <button class="btn-icon" id="notif-btn" title="Уведомления">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          </button>
+          <button class="btn-text" id="logout-btn">Выход</button>
+        </div>
+      </header>
+
+      <!-- Analyzer Page -->
+      <div class="page active" id="page-analyzer">
+        <div class="analyzer-layout">
+          <div class="analyzer-center">
+            <div class="controls-row">
+              <div class="control-group">
+                <label>СУММА</label>
+                <div class="input-prefix">
+                  <span>$</span>
+                  <input type="number" id="pot-amount" value="0" min="0">
+                </div>
+              </div>
+              <div class="control-group">
+                <label>ИТОГОВЫЙ ИСХОД</label>
+                <div class="outcome-toggle">
+                  <button class="outcome-btn win active" data-outcome="win">WIN</button>
+                  <button class="outcome-btn lose" data-outcome="lose">LOSE</button>
+                </div>
+              </div>
+              <button class="btn-icon reset-btn" id="reset-cards" title="Сбросить карты">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              </button>
+            </div>
+
+            <div class="cards-section">
+              <div class="cards-label">ОБЩИЕ КАРТЫ (БОРД)</div>
+              <div class="card-slots" id="board-slots">
+                <div class="card-slot" data-index="0"></div>
+                <div class="card-slot" data-index="1"></div>
+                <div class="card-slot" data-index="2"></div>
+                <div class="card-slot" data-index="3"></div>
+                <div class="card-slot" data-index="4"></div>
+              </div>
+            </div>
+
+            <div class="cards-section">
+              <div class="cards-label">МОЯ РУКА</div>
+              <div class="card-slots hand-slots" id="hand-slots">
+                <div class="card-slot" data-index="0"></div>
+                <div class="card-slot" data-index="1"></div>
+              </div>
+            </div>
+
+            <button class="btn btn-primary btn-analyze" id="analyze-btn">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v1.2a8 8 0 0 1 3.5 1.5l.85-.85a2.5 2.5 0 0 1 3.54 3.54l-.85.85a8 8 0 0 1 1.5 3.5H21a2.5 2.5 0 0 1 0 5h-1.2a8 8 0 0 1-1.5 3.5l.85.85a2.5 2.5 0 0 1-3.54 3.54l-.85-.85a8 8 0 0 1-3.5 1.5V21a2.5 2.5 0 0 1-5 0v-1.2a8 8 0 0 1-3.5-1.5l-.85.85a2.5 2.5 0 0 1-3.54-3.54l.85-.85a8 8 0 0 1-1.5-3.5H3a2.5 2.5 0 0 1 0-5h1.2a8 8 0 0 1 1.5-3.5l-.85-.85a2.5 2.5 0 0 1 3.54-3.54l.85.85a8 8 0 0 1 3.5-1.5V4.5A2.5 2.5 0 0 1 9.5 2z"/><circle cx="12" cy="12" r="3"/></svg>
+              Запустить глубокий анализ
+            </button>
+          </div>
+
+          <!-- Right Panel -->
+          <aside class="analyzer-right">
+            <div class="panel deck-panel">
+              <div class="panel-header">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="14" height="18" rx="2"/><path d="M8 4V2"/><path d="M16 4V2"/></svg>
+                Колода
+              </div>
+              <div id="deck-grid"></div>
+            </div>
+
+            <div class="panel result-panel">
+              <div class="panel-header">ШАНС НА ПОБЕДУ</div>
+              <div class="equity-circle">
+                <svg viewBox="0 0 120 120">
+                  <circle cx="60" cy="60" r="52" class="equity-bg"/>
+                  <circle cx="60" cy="60" r="52" class="equity-fill" id="equity-ring"/>
+                </svg>
+                <div class="equity-value" id="equity-value">—</div>
+              </div>
+            </div>
+
+            <div class="panel result-panel">
+              <div class="panel-header">ТЕКУЩАЯ КОМБИНАЦИЯ</div>
+              <div class="combo-name" id="combo-name">—</div>
+              <div class="combo-cards" id="combo-cards"></div>
+            </div>
+
+            <div class="panel advice-panel" id="advice-panel">
+              <div class="panel-header">СОВЕТ AI</div>
+              <p class="advice-text" id="advice-text">Выберите карты и нажмите «Запустить глубокий анализ»</p>
+              <button class="btn btn-action" id="advice-action" style="display:none">—</button>
+            </div>
+
+            <div class="panel result-panel pro-only" id="opponent-panel">
+              <div class="panel-header">ДИАПАЗОН ПРОТИВНИКА</div>
+              <div class="equity-bar-wrap">
+                <span>Эквити</span>
+                <div class="equity-bar">
+                  <div class="equity-bar-fill" id="opp-equity-bar"></div>
+                </div>
+                <span id="opp-equity-val">—</span>
+              </div>
+              <div class="opp-combos" id="opp-combos"></div>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <!-- History Page -->
+      <div class="page" id="page-history">
+        <div class="history-list" id="history-list">
+          <p class="empty-state">История пуста. Проведите первый анализ!</p>
+        </div>
+      </div>
+
+      <!-- Settings Page -->
+      <div class="page" id="page-settings">
+        <div class="settings-grid">
+          <div class="panel">
+            <div class="panel-header">Профиль</div>
+            <div class="settings-row">
+              <span>Имя пользователя</span>
+              <strong id="settings-username">—</strong>
+            </div>
+            <div class="settings-row">
+              <span>Тариф</span>
+              <strong id="settings-plan">—</strong>
+            </div>
+            <div class="settings-row">
+              <span>Анализов сегодня</span>
+              <strong id="settings-analyses">—</strong>
+            </div>
+          </div>
+          <div class="panel subscription-panel">
+            <div class="panel-header">Подписка Pro</div>
+            <p class="sub-desc">Безлимитный анализ, глубокие советы AI и диапазон противника</p>
+            <div class="sub-price">299 ₽ <span>/ месяц</span></div>
+            <button class="btn btn-primary btn-full" id="subscribe-btn">Активировать Pro по ключу</button>
+            <button class="btn btn-secondary btn-full" id="cancel-sub-btn" style="display:none">Отменить подписку</button>
+            <p class="sub-note" id="sub-expires"></p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Subscription Modal -->
+  <div class="modal-overlay" id="sub-modal">
+    <div class="modal">
+      <button class="modal-close" id="sub-modal-close">&times;</button>
+      <h3>Активация Pro</h3>
+      <p>Введите ключ лицензии для активации Pro-подписки на 30 дней.</p>
+      <div class="modal-form-group">
+        <label for="license-key">Ключ активации</label>
+        <input type="text" id="license-key" placeholder="XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="form-error" id="key-error"></div>
+      <ul class="modal-features">
+        <li>✓ Безлимитный анализ</li>
+        <li>✓ Глубокий AI-совет</li>
+        <li>✓ Диапазон противника</li>
+        <li>✓ Полная история</li>
+      </ul>
+      <button class="btn btn-primary btn-full" id="confirm-sub-btn">Активировать</button>
+    </div>
+  </div>
+
+  <!-- Limit Modal -->
+  <div class="modal-overlay" id="limit-modal">
+    <div class="modal">
+      <button class="modal-close" id="limit-modal-close">&times;</button>
+      <h3>Лимит исчерпан</h3>
+      <p>На Free-тарифе доступно 5 анализов в день. Оформите Pro для безлимитного доступа.</p>
+      <button class="btn btn-primary btn-full" id="limit-upgrade-btn">Перейти на Pro</button>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/poker-engine.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
