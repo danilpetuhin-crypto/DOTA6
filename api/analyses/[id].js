@@ -2,13 +2,13 @@ const connectDB = require('../../lib/db');
 const Analysis = require('../../models/Analysis');
 const { authMiddleware } = require('../../lib/auth');
 
-export const config = {
+module.exports.config = {
   api: {
     external: true,
   },
 };
 
-async function handler(req, res) {
+module.exports = async function handler(req, res) {
   await connectDB();
   await authMiddleware(req, res, () => {});
 

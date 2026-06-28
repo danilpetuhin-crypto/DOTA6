@@ -2,13 +2,13 @@ const connectDB = require('../../lib/db');
 const User = require('../../models/User');
 const { authMiddleware } = require('../../lib/auth');
 
-export const config = {
+module.exports.config = {
   api: {
     external: true,
   },
 };
 
-async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Метод не разрешён' });
   }

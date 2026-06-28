@@ -2,7 +2,7 @@ const connectDB = require('../../lib/db');
 const User = require('../../models/User');
 const { authMiddleware } = require('../../lib/auth');
 
-export const config = {
+module.exports.config = {
   api: {
     external: true,
   },
@@ -11,7 +11,7 @@ export const config = {
 // Валидные лицензионные ключи
 const VALID_KEYS = ['EKKL-812C-2DSL-L5VN', 'GCKL-241C-2DSL-L38N'];
 
-async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Метод не разрешён' });
   }
